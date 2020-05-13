@@ -1,15 +1,10 @@
 (module ix ()
 
-(import scheme)
-(import chicken.base)
-(import chicken.type)
-(import chicken.string)
-(import chicken.format)
-
-(define (main)
-  (printf "hello pontiff!\n")
-  (exit 0))
-
-(main)
+(import chicken.module)
+(reexport (prefix (except ix.base prototype) ix:))
+(reexport (prefix ix.build ix:))
+(reexport (prefix ix.parse parse:))
+(reexport (prefix ix.stringify stringify:))
+(reexport ix.lens)
 
 )

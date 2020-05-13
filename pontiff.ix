@@ -1,20 +1,22 @@
 (pontiff :name ix
          :version {0 1 0}
          :pontiff-version {0 1 0}
-         :synopsis ""
-         :authors []
+         :synopsis "interchange"
+         :authors ["alice maz"]
          :license "BSD-3"
          :repository (pontiff:repository :name ix :vcs git :url "")
-         :category uncategorized
+         :category parse
          :tags []
          :source-dir "src"
          :test-dir "test"
-         :csc-flags ["-keyword-style" "prefix" "-specialize" "-local" "-lfa2" "-inline" "-inline-global" "-optimize-leaf-routines"]
+         :csc-flags ["-keyword-style" "prefix" "-specialize" "-local" "-lfa2"
+                     "-inline" "-inline-global" "-optimize-leaf-routines"]
          :cc clang
          :ld lld
-         :artifacts [(pontiff:executable :name ix :root ix)]
-         :tests [(pontiff:executable :name unit :root test.unit) (pontiff:executable :name integration :root test.integration)]
-         :dependencies []
+         :artifacts [(pontiff:library :name ix :root ix) ]
+         :tests [(pontiff:executable :name unit :root test.unit)
+                 (pontiff:executable :name integration :root test.integration)]
+         :dependencies [(pontiff:directory :name tabulae :path "/home/alice/work/garden/tabulae")]
          :resolver alice
-         :egg-dependencies [test]
+         :egg-dependencies [test uuid]
          :egg-resolver chicken-install)
