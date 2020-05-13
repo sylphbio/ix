@@ -168,9 +168,28 @@
                   ((and type is-optional) '())
                   (else #f))))
 
+; ix:* is the standard identifier for arbitrary ix
+(define (build tag . kvs)
+  (if (and (eqv? tag 'ix:*) (not (null? kvs)) (even? (length kvs)))
+      (build-free kvs)
+      (build-typed tag kvs)))
+
+; make sure we have pairs of keys and well-typed values, then just assemble it
+; values must be wrapped!! I am not writing type inference, if needed just parse from string
+(define (build-free kvs)
+  (do/m <maybe>
+    (k/vs <- (sequence (map (lambda (k/v)
+      (let ((k (car  k/v))
+            (v (cadr k/v)))
+           (if (and (keyword? k) (ix:well-typed? v))
+               (return `(,(ix:wrap 'keyword k) ,v))
+               (fail))))
+      (chop kvs 2))))
+    (return `(sexp (identifier ix *) ,@(join k/vs)))))
+
 ; takes an object tag and keyword arguments for all its fields
 ; prototype lookup, merge prototype types with input values, validate the result
-(define (build tag . kvs)
+(define (build-typed tag kvs)
   (do/m <maybe>
     (proto <- (ix:prototype tag))
     (to-maybe (all* (lambda (k) (get-keyword k (cdr proto))) (filter* keyword? kvs)))

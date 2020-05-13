@@ -36,12 +36,19 @@
 (define (scientific? v) (is-type 'scientific v))
 (define (boolean? v) (is-type 'boolean v))
 
+; I unroll this and primitive by hand because to or over all the predicates makes call chains useless
 (define (ix? v)
-  (or (sexp? v) (list? v) (product? v) (enum? v) (identifier? v) (keyword? v) (symbol? v)
-      (oid? v) (string? v) (integer? v) (natural? v) (scientific? v) (boolean? v)))
+  (let ((t (and (scheme:list? v) (not (null? v)) (car v))))
+       (if (eqv? t 'sexp)
+           (sexp? v)
+           (memv t `(list product enum identifier keyword symbol
+                     oid string integer natural scientific boolean)))))
 
 (define (primitive? v)
-  (or (identifier? v) (keyword? v) (symbol? v) (oid? v) (string? v) (integer? v) (natural? v) (scientific? v) (boolean? v)))
+  (let ((t (and (scheme:list? v) (not (null? v)) (car v))))
+       (if (eqv? t 'sexp)
+           (sexp? v)
+           (memv t `(identifier keyword symbol oid string integer natural scientific boolean)))))
 
 (define (wrap t v)
   (if (memv t `(sexp list product identifier))
@@ -79,17 +86,23 @@
                                                           (eq? #\: c)))
                                           cs))))
 
+; XXX have sexp actually check that it goes ident/kw/ix/kw/ix/kw/ix. ignore schema
 (define (well-typed? tv)
-  (define v (and (ix? tv) (unwrap! tv)))
-  (cond ((identifier? tv) (and (not (null? v)) (all* scheme:symbol? v)))
-        ((keyword? tv) (chicken:keyword? v))
-        ((symbol? tv) (and (scheme:symbol? v) (valid-symbol? v)))
-        ((oid? tv) (uuid? v))
-        ((string? tv) (scheme:string? v))
-        ((integer? tv) (exact-integer? v))
-        ((natural? tv) (and (exact-integer? v) (>= v 0)))
-        ((scientific? tv) (scheme:number? v))
-        ((boolean? tv) (scheme:boolean? v))
-        (else #f)))
+  (if (not (ix? tv))
+      #f
+      (let ((t (car tv))
+            (v (unwrap! tv)))
+           (case t
+             ((sexp list product) (all* well-typed? v))
+             ((identifier) (and (not (null? v)) (all* scheme:symbol? v)))
+             ((keyword) (chicken:keyword? v))
+             ((symbol) (and (scheme:symbol? v) (valid-symbol? v)))
+             ((oid) (uuid? v))
+             ((string) (scheme:string? v))
+             ((integer) (exact-integer? v))
+             ((natural) (and (exact-integer? v) (>= v 0)))
+             ((scientific) (scheme:number? v))
+             ((boolean) (scheme:boolean? v))
+             (else #f)))))
 
 )

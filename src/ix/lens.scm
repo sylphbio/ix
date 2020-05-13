@@ -66,9 +66,9 @@
                       ; sexp is straightforward, compare tags and validate
                       ; list and enum tho I need to find the containing sexp tag and use validate-value
                       ; so making this improvement is nontrivial
-                      (if (and (ix:primitive? mid^) (not (ix:well-typed? mid^)))
-                          (fail)
-                          (return mid^)))
+                      (if (ix:well-typed? mid^)
+                          (return mid^)
+                          (fail)))
                  (apply-in f (cdr ss) ((car ss) mid))))
     (return `(,@left ,mid^ ,@right))))
 
