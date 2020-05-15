@@ -14,6 +14,7 @@
 
 ; get index of the keyword, take/drop one past it (ie the value is the car of the righthand list)
 ; then get can extract the value, set/apply rebuild the structure with the new value
+; XXX TODO this doesn't admit any way to add a key (relevant to ix generics)
 (define (keyw k) (lambda (l)
   (do/m <maybe>
     (k^ <- (cond ((ix:keyword? k) (return k))

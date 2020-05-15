@@ -111,9 +111,22 @@
            ((and (list? (second* proto)) (eq? (car (second* proto)) 'optional))
             (filter-proto (drop* 2 proto) obj acc))
            (else #f))))
+   ; special validate for ix:* that doesn't depend on a prototype
+   ; XXX TODO FIXME this is wrong in a potentially very dangerous way because it short-circuits recursive transformations
+   ; what it should actually do is... three-way branch:
+   ; * primitive, check well-typed
+   ; * sexp, validate (which further branches in ident to generic/typed)
+   ; * list/product, map this hypothetical three-way branch over all members
+   ; the other approach is to reuse all the typed machinery and have a function that generates fake prototypes for ix:*
+   ; this introduces its own problems tho, namely how to resolve elided sum and list types
+   ; for now I will do the simple thing and just, not nest ambiguous typed sexps in untyped sexps
+   ; but moreover we are way fucking past the point where we need to formalize ix, the semantics are becoming very complicated
+   (validate-generic (lambda (sx) (do/m <maybe>
+     (sequence (map (lambda (k/v) (to-maybe (and (ix:keyword? (first* k/v)) (ix:well-typed? (second* k/v)))))
+                    (chop (drop* 2 sx) 2)))
+     (return sx))))
    ; load prototype by tag, filter optionals, validate all keys and values, rebuild the object if all checks succeed
-   (validate (lambda (sx) (do/m <maybe>
-     (i <- ((^. ident) sx))
+   (validate-typed (lambda (sx i) (do/m <maybe>
      (declare sx-kvs (cddr sx))
      (proto <- (ix:prototype (ix:ident->tag i)))
      (filtered-proto <- (to-maybe (filter-proto (cdr proto) sx-kvs '())))
@@ -121,7 +134,12 @@
      (obj-body <- (let ((ret (map (lambda (p) (validate-value (car p) (cdr p)))
                                   (zip* filtered-proto sx-kvs))))
                        (if (all* identity ret) (return ret) (fail))))
-     (return `(sexp ,i ,@obj-body))))))
+     (return `(sexp ,i ,@obj-body)))))
+    (validate (lambda (sx) (do/m <maybe>
+     (i <- ((^. ident) sx))
+     (if (eq? (ix:ident->tag i) 'ix:*)
+         (validate-generic sx)
+         (validate-typed sx i))))))
     validate))
 
 ; pretty self-explanatory
@@ -170,7 +188,7 @@
 
 ; ix:* is the standard identifier for arbitrary ix
 (define (build tag . kvs)
-  (if (and (eqv? tag 'ix:*) (not (null? kvs)) (even? (length kvs)))
+  (if (and (eqv? tag 'ix:*) (even? (length kvs)))
       (build-free kvs)
       (build-typed tag kvs)))
 
@@ -185,7 +203,8 @@
                (return `(,(ix:wrap 'keyword k) ,v))
                (fail))))
       (chop kvs 2))))
-    (return `(sexp (identifier ix *) ,@(join k/vs)))))
+    (declare sx `(sexp (identifier ix *) ,@(join k/vs)))
+    (validate sx)))
 
 ; takes an object tag and keyword arguments for all its fields
 ; prototype lookup, merge prototype types with input values, validate the result
