@@ -96,7 +96,7 @@
              ((sexp list product) (all* well-typed? v))
              ((identifier) (and (not (null? v)) (all* scheme:symbol? v)))
              ((keyword) (chicken:keyword? v))
-             ((symbol) (and (scheme:symbol? v) (valid-symbol? v)))
+             ((symbol enum) (and (scheme:symbol? v) (valid-symbol? v)))
              ((oid) (uuid? v))
              ((string) (scheme:string? v))
              ((integer) (exact-integer? v))
