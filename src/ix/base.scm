@@ -1,5 +1,5 @@
 (module ix.base (init prototype ix? primitive? sexp? list? product? enum? identifier?
-                 keyword? symbol? oid? string? integer? natural? scientific? boolean?
+                 keyword? symbol? uuid? string? integer? natural? scientific? boolean?
                  well-typed? tag->ident ident->tag ident=? wrap unwrap unwrap!)
 
 (import (except scheme list? string? symbol? integer? number? boolean?))
@@ -11,9 +11,11 @@
 
 (import tabulae)
 (import tabulae.monad)
-(import uuid)
+(import (prefix uuid uuid:))
 
-; note there's no way to do unchecked builds, may add if I need it
+(import ix.static)
+
+; prototype isn't called for ix:* so consequently build can work with that (and only that) identifier sans init
 (define (prototype _) (error "must init ix:prototype with a function of type `tag -> maybe prototype`"))
 (define (init f) (set! prototype f))
 
@@ -29,7 +31,7 @@
 (define (identifier? v) (is-type 'identifier v))
 (define (keyword? v) (is-type 'keyword v))
 (define (symbol? v) (is-type 'symbol v))
-(define (oid? v) (is-type 'oid v))
+(define (uuid? v) (is-type 'uuid v))
 (define (string? v) (is-type 'string v))
 (define (integer? v) (is-type 'integer v))
 (define (natural? v) (is-type 'natural v))
@@ -42,13 +44,13 @@
        (if (eqv? t 'sexp)
            (sexp? v)
            (memv t `(list product enum identifier keyword symbol
-                     oid string integer natural scientific boolean)))))
+                     uuid string integer natural scientific boolean)))))
 
 (define (primitive? v)
   (let ((t (and (scheme:list? v) (not (null? v)) (car v))))
        (if (eqv? t 'sexp)
            (sexp? v)
-           (memv t `(identifier keyword symbol oid string integer natural scientific boolean)))))
+           (memv t `(identifier keyword symbol uuid string integer natural scientific boolean)))))
 
 (define (wrap t v)
   (if (memv t `(sexp list product identifier))
@@ -76,8 +78,7 @@
 (define (ident=? tag sx)
   (and (sexp? sx) (eq? (ident->tag (cadr sx)) tag)))
 
-(define untroublesome-symbols (string->list "!$%&*+-./;<=>?@^_~"))
-(define (untroublesome? c) (memq c untroublesome-symbols))
+(define (untroublesome? c) (memq c untroublesome))
 (define (valid-symbol? s) (let ((cs (string->list (symbol->string s))))
                                (and (not (eq? #\: (car cs)))
                                     (all* (lambda (c) (or (char-alphabetic? c)
@@ -97,7 +98,7 @@
              ((identifier) (and (not (null? v)) (all* scheme:symbol? v)))
              ((keyword) (chicken:keyword? v))
              ((symbol enum) (and (scheme:symbol? v) (valid-symbol? v)))
-             ((oid) (uuid? v))
+             ((uuid) (uuid:uuid? v))
              ((string) (scheme:string? v))
              ((integer) (exact-integer? v))
              ((natural) (and (exact-integer? v) (>= v 0)))

@@ -40,7 +40,7 @@
        ((optional)   (validate-value (cadr proto) obj))
        ; validate against each type on the sum, taking the first that succeeds
        ; XXX it would be nice if I could ban "overlapping" sums
-       ; ie, sum cannot contain both symbol and enum, or oid and string, or multiple number types
+       ; ie, sum cannot contain both symbol and enum, or uuid and string, or multiple number types
        ((sum)        (sum-find (cdr proto) obj))
        ; validate each type of the product in turn
        ((product)    (and (ix:product? obj)
@@ -90,7 +90,7 @@
                            (else #f)))
        ; straightforward
        ((symbol
-         oid
+         uuid
          string
          natural
          boolean)    (and (ix:ix? obj)
@@ -121,6 +121,7 @@
    ; this introduces its own problems tho, namely how to resolve elided sum and list types
    ; for now I will do the simple thing and just, not nest ambiguous typed sexps in untyped sexps
    ; but moreover we are way fucking past the point where we need to formalize ix, the semantics are becoming very complicated
+   ; XXX generic should as a rule not contain enums
    (validate-generic (lambda (sx) (do/m <maybe>
      (sequence (map (lambda (k/v) (to-maybe (and (ix:keyword? (first* k/v)) (ix:well-typed? (second* k/v)))))
                     (chop (drop* 2 sx) 2)))
@@ -156,7 +157,7 @@
   (define raw-value (if (ix:ix? value) (ix:unwrap! value) value))
   (case type-tag
     ; all these we can just add the tag to the raw value
-    ((sexp enum symbol oid string integer natural scientific boolean) (ix:wrap type-tag raw-value))
+    ((sexp enum symbol uuid string integer natural scientific boolean) (ix:wrap type-tag raw-value))
     ; add the tag and wrap all list values
     ((list) (ix:wrap type-tag (map ((curry* wrap-build-value) (cadr type))
                                    raw-value)))

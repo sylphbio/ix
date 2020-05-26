@@ -11,7 +11,9 @@
 (import tabulae.parsec)
 (import tabulae.monad)
 
-(define oid
+(import ix.static)
+
+(define uuid-p
   (do/m <parser>
     (s1 <- (precisely 8 hex))
     (value #\-)
@@ -32,8 +34,10 @@
 ; XXX I might want to make my parser an either rather than maybe? that would be a huge refactor tho
 ; before I do anything like that I should read the paper about making parsec efficient lol
 ; XXX note I changed parser to be sexp or bare list, but by definition only a sexp can validate
+; XXX TODO FIXME I don't support escapes or double quotes in strings lol
+; this plus the comment thing makes me think I should write a char-by-char parser
 (define (ix-parser #!key flat) (letrec
-  ((untroublesome (sat (lambda (c) (memv c (string->list "!$%&*+-./;<=>?@^_~")))))
+  ((untroublesome-p (sat (lambda (c) (memv c untroublesome))))
    (keyval (do/m <parser>
      (return (void))
      (k <- ix-keyword)
@@ -43,14 +47,14 @@
    (term (do/m <parser>
      (return (void))
      (t <- (apply <?> `(,@(if flat '() `(,ix-sexp ,ix-list ,ix-product))
-                        ,ix-oid ,ix-string ,ix-int/nat/sci ,ix-bool ,ix-symbol)))
+                        ,ix-uuid ,ix-string ,ix-int/nat/sci ,ix-bool ,ix-symbol)))
      (many whitespace)
      (return t)))
-   (ix-oid (do/m <parser>
+   (ix-uuid (do/m <parser>
      (value #\")
-     (o <- oid)
+     (u <- uuid-p)
      (value #\")
-     (return `(oid ,o))))
+     (return `(uuid ,u))))
    (ix-string (do/m <parser>
      (value #\")
      (s <- (many (sat (lambda (c) (not (eqv? c #\"))))))
@@ -78,16 +82,16 @@
    ; I need to impl sepby first tho
    (ix-ident (do/m <parser>
      (return (void))
-     (s <- (many1 (<?> alphanum untroublesome (value #\:))))
+     (s <- (many1 (<?> alphanum untroublesome-p (value #\:))))
      (return `(identifier ,@(map string->symbol (string-split s ":"))))))
    (ix-symbol (do/m <parser>
      (return (void))
-     (s1 <- (<?> alphanum untroublesome))
-     (sn <- (many (<?> alphanum untroublesome (value #\:))))
+     (s1 <- (<?> alphanum untroublesome-p))
+     (sn <- (many (<?> alphanum untroublesome-p (value #\:))))
      (return `(symbol ,(string->symbol (cons* s1 sn))))))
    (ix-keyword (do/m <parser>
      (value #\:)
-     (s <- (many1 (<?> alphanum untroublesome)))
+     (s <- (many1 (<?> alphanum untroublesome-p)))
      (return `(keyword ,(string->keyword s)))))
    (ix-product (do/m <parser>
      lcbracket
@@ -112,5 +116,24 @@
 
 (define (ix sx) (parse->maybe ((ix-parser) sx)))
 (define (flat-ix sx) (parse->maybe ((ix-parser :flat #t) sx)))
+
+; XXX json->ix
+; js string/obj/array/bool go straight to ix string/sexp/list/bool
+; js number just take to whitespace and use scheme string->number
+; and assign the narrowest valid ix numeric type to it
+; for keywords make sure to check for blacklisted symbols
+; null is an error
+; in this way arbitary json (without null or fucky characters in keywords) can be turned to (shitty) ix
+; as for our own semantics...
+; js keywords of the form "name#type" we use the type following the hash blindly
+; this is produced by ix->json for int/nat/sci/sym/uuid (all stored as string) and product (as list)
+; sums and enums are not part of generic ix so validate can set them up as needed
+; also a special js keyword simply "#identifier" which does what you'd expect
+; the one tricky thing is json may trash key order so we need to parse the whole thing to check for ident
+; call validate on any resulting object(s)
+; allow object or list as the toplevel
+; in this manner we get (almost) arbitrary json->ix and also no information loss for ix->json->ix
+; XXX I don't support js string escapes yet but valid ones are \b \f \n \r \t \" \\
+;(define (json->ix js)
 
 )
