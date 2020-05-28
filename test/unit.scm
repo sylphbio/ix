@@ -118,6 +118,10 @@
   (test "required/optional builds missing both optionals" `(Just ,soo3) (ix:build 'ix:test :r1 1 :r2 2))
   (test "required/optional fails to build missing required" 'Nothing (ix:build 'ix:test :r1 1 :o1 1 :o2 2)))
 
+(test-group "json"
+  (define in "(some:object :key \"hello\" :t #t :f #f :another-key (subtask :key \"omg\" :n -97 :sym hello :ll [1 2 3] :sci -2.3e+77))")
+  (printf "MAZ json: ~A\n" (stringify:ix->json (from-just (parse:ix in)))))
+
 (test-exit)
 
 )

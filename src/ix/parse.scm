@@ -134,6 +134,14 @@
 ; allow object or list as the toplevel
 ; in this manner we get (almost) arbitrary json->ix and also no information loss for ix->json->ix
 ; XXX I don't support js string escapes yet but valid ones are \b \f \n \r \t \" \\
+
+; hm wait so why can't I just say, ok, identified sexps convert as per their prototypes
+; generic ix... just accept that it's lossy? numbers symbols and products are the only things we really lose
+; so I could parse out all the keys/values including identifier
+; then run everything through build if we have an ident, or set what we can by hand and validate if not
+; only support needed is to allow numbers and symbols to convert up from strings
+; products get tagged properly in wrap-build-kv-pair, enums get caught by symbol
+
 ;(define (json->ix js)
 
 )
