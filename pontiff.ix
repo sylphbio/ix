@@ -18,5 +18,5 @@
                  (pontiff:executable :name integration :root test.integration)]
          :dependencies [(pontiff:directory :name tabulae :path "/home/alice/work/garden/tabulae")]
          :resolver alice
-         :egg-dependencies [test uuid]
+         :egg-dependencies [test uuid json]
          :egg-resolver chicken-install)

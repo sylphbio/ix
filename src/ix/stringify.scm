@@ -13,6 +13,7 @@
 ; specifically because scheme has nonstandard multichar escapes like \null and \tab
 ; I'm... inclined to ban null, support the usual whitespace escapes plus backslash and quote
 ; allow full utf8 and don't provide any hex escape mechanism or anything like that
+; XXX sig wanted a binary rep for sci but there are algorithms that produce correct text reps for 100% of values
 (define (ix sx)
   (let ((into (lambda (l) (string-intersperse (map ix l) " "))))
        (case (and (list? sx) (car sx))

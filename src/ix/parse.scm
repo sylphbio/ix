@@ -1,4 +1,4 @@
-(module ix.parse (ix flat-ix)
+(module ix.parse (ix flat-ix json->ix)
 
 (import scheme)
 (import chicken.base)
@@ -6,11 +6,15 @@
 (import chicken.format)
 (import chicken.string)
 (import chicken.keyword)
+(import chicken.port)
 
 (import tabulae)
 (import tabulae.parsec)
 (import tabulae.monad)
+(import json)
 
+(import (prefix ix.base ix:))
+(import (prefix ix.build ix:))
 (import ix.static)
 
 (define uuid-p
@@ -36,6 +40,8 @@
 ; XXX note I changed parser to be sexp or bare list, but by definition only a sexp can validate
 ; XXX TODO FIXME I don't support escapes or double quotes in strings lol
 ; this plus the comment thing makes me think I should write a char-by-char parser
+; XXX TODO FIXME consume leading whitespace
+; XXX consider whether to restrict toplevel to "sexp or list of sexp" rather than "sexp or list"
 (define (ix-parser #!key flat) (letrec
   ((untroublesome-p (sat (lambda (c) (memv c untroublesome))))
    (keyval (do/m <parser>
@@ -117,31 +123,48 @@
 (define (ix sx) (parse->maybe ((ix-parser) sx)))
 (define (flat-ix sx) (parse->maybe ((ix-parser :flat #t) sx)))
 
-; XXX json->ix
-; js string/obj/array/bool go straight to ix string/sexp/list/bool
-; js number just take to whitespace and use scheme string->number
-; and assign the narrowest valid ix numeric type to it
-; for keywords make sure to check for blacklisted symbols
-; null is an error
-; in this way arbitary json (without null or fucky characters in keywords) can be turned to (shitty) ix
-; as for our own semantics...
-; js keywords of the form "name#type" we use the type following the hash blindly
-; this is produced by ix->json for int/nat/sci/sym/uuid (all stored as string) and product (as list)
-; sums and enums are not part of generic ix so validate can set them up as needed
-; also a special js keyword simply "#identifier" which does what you'd expect
-; the one tricky thing is json may trash key order so we need to parse the whole thing to check for ident
-; call validate on any resulting object(s)
-; allow object or list as the toplevel
-; in this manner we get (almost) arbitrary json->ix and also no information loss for ix->json->ix
-; XXX I don't support js string escapes yet but valid ones are \b \f \n \r \t \" \\
-
-; hm wait so why can't I just say, ok, identified sexps convert as per their prototypes
-; generic ix... just accept that it's lossy? numbers symbols and products are the only things we really lose
-; so I could parse out all the keys/values including identifier
-; then run everything through build if we have an ident, or set what we can by hand and validate if not
-; only support needed is to allow numbers and symbols to convert up from strings
-; products get tagged properly in wrap-build-kv-pair, enums get caught by symbol
-
-;(define (json->ix js)
+; so the way json->ix works is, first to cut corners I parse the json to scheme with a library
+; this produces vectors of pairs for objects, lists for arrays, unspecified for null, what you'd expect for rest
+; so for anything that will become an ix sexp, we look for our special ##identifier key (created by ix->json)
+; for generic objects we have to wrap everything for build, but if we have a real tag build can handle it
+; ix->json downcasts numbers and symbols to strings. validate-value in build can upcast them back
+; thus generic ix conversions are lossy but typed ix conversions use the prototype to achieve losslessness
+(define json->ix (letrec
+   ; trivial helper
+  ((wrap (lambda (to-wrap tag val) (if to-wrap (ix:wrap tag val) val)))
+   ; transforms parsed json values to ix values, wrapped or unwrapped based on tag
+   (parse-value (lambda (tw val)
+     (cond ((vector? val) (parse-obj val))
+           ((list? val) (wrap tw 'list (map ((curry* parse-value) tw) val)))
+           ((string? val) (wrap tw 'string val))
+           ((and (exact-integer? val) (>= val 0)) (wrap tw 'natural val))
+           ((exact-integer? val) (wrap tw 'integer val))
+           ((number? val) (wrap tw 'scientific val))
+           ((boolean? val) (wrap tw 'boolean val))
+           ((eqv? (void) val) (error "null is (emphatically) not supported"))
+           (else (error "not a value" val)))))
+   ; so we convert to list and check for an identifier, defaulting to ix:* of course
+   ; for a generic ix object, we need to wrap all our values (not keywords) before calling build
+   ; but for a typed ix object, we leave them unwrapped, since our prototype promotes certain types up from strings
+   (parse-obj (lambda (vec)
+     (let* ((ident/rest (partition* (lambda (k/v) (equal? (car k/v) "##identifier"))
+                                    (vector->list vec)))
+            (tag (if (not (null? (first* ident/rest)))
+                     (string->symbol (cdar (first* ident/rest)))
+                     'ix:*))
+            (build-args (join (map (lambda (k/v) (parse-kv (eqv? tag 'ix:*) (car k/v) (cdr k/v)))
+                                   (second* ident/rest)))))
+           (apply ix:build `(,tag ,@build-args)))))
+   ; don't bother checking eg that symbols are in the charset, build checks well-typedness
+   (parse-kv (lambda (to-wrap key val)
+     `(,(string->keyword key) ,(parse-value to-wrap val))))
+   ; ecma-404 isn't the boss of me
+   ; I see no point in an object format supporting toplevel primitives
+   (json->ix (lambda (js)
+     (let ((raw (call-with-input-string js json-read)))
+          (cond ((vector? raw) (parse-obj raw))
+                ((and (list? raw) (all* vector? raw)) (map parse-obj raw))
+                (else (error "json->ix accepts an object or a list of objects" js)))))))
+  json->ix))
 
 )

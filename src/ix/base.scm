@@ -15,6 +15,16 @@
 
 (import ix.static)
 
+; XXX TODO FIXME should I make the monadic interface an optional extension?
+; I wrote this "library" as a piece of a larger project and then gradually split it out
+; returning monadic values feels like an impediment now tho, like the ix library ought to stand alone
+; it's also true I need error messages and the maybe monad is not suited for that
+; thinking... perhaps I die with errors wherever reasonable
+; then have a separate ix.monad module with names like parse:ix-m or whatever
+; that call the normal functions in a condition-case and catch into Nothing
+; it is also absolutely true that like 90% of my access calls I use ^.!! lol
+; also it is true I'm weirdly inconsistent about returning false (eg from stringify) or whatever
+
 ; prototype isn't called for ix:* so consequently build can work with that (and only that) identifier sans init
 (define (prototype _) (error "must init ix:prototype with a function of type `tag -> maybe prototype`"))
 (define (init f) (set! prototype f))
@@ -60,6 +70,7 @@
 ; XXX this definition of unwrap makes no sense for sexp
 ; it should strip the identifier so it can at least be used with chicken keyword functions
 ; that said unwrapping a sexp is of dubious value anyway
+; XXX should this recursively unwrap lists and products?
 (define (unwrap v)
   (cond ((or (sexp? v) (list? v) (product? v) (identifier? v))
          (<maybe>-return (cdr v)))

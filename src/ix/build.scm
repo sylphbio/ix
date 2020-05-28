@@ -61,10 +61,12 @@
        ; check if identifier and compare by converting to tag, ie join to symbol with colons
        ((identifier) (and (ix:identifier? obj)
                           (eq? proto (ix:ident->tag obj))
+                          (ix:well-typed? obj)
                           obj))
        ; straightforward
        ((keyword)    (and (ix:keyword? obj)
                           (eq? proto (ix:unwrap! obj))
+                          (ix:well-typed? obj)
                           obj))
        ; if object is tagged enum, compare it to the list of allowed values from the prototype
        ; if it's a symbol, convert and recurse.we don't recheck in the cond arm for (hopeful) correctness sake
@@ -152,12 +154,16 @@
 
 ; this wraps a given value with a given type
 ; split out from its parent below because it needs to recurse
+; we do string conversions here rather than in vv to avoid ever constructing invalid wrapped items
 (define (wrap-build-value type value)
   (define type-tag (if (symbol? type) type (car type)))
   (define raw-value (if (ix:ix? value) (ix:unwrap! value) value))
   (case type-tag
     ; all these we can just add the tag to the raw value
-    ((sexp enum symbol uuid string integer natural scientific boolean) (ix:wrap type-tag raw-value))
+    ((sexp uuid string boolean) (ix:wrap type-tag raw-value))
+    ; these may upcast from string
+    ((enum symbol) (ix:wrap type-tag (if (string? raw-value) (string->symbol raw-value) raw-value)))
+    ((integer natural scientific) (ix:wrap type-tag (if (string? raw-value) (string->number raw-value) raw-value)))
     ; add the tag and wrap all list values
     ((list) (ix:wrap type-tag (map ((curry* wrap-build-value) (cadr type))
                                    raw-value)))
