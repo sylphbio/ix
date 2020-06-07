@@ -41,6 +41,7 @@
        ; validate against each type on the sum, taking the first that succeeds
        ; XXX it would be nice if I could ban "overlapping" sums
        ; ie, sum cannot contain both symbol and enum, or uuid and string, or multiple number types
+       ; XXX UPDATE nevermind sum type of numbers is it turns out desirable lol
        ((sum)        (sum-find (cdr proto) obj))
        ; validate each type of the product in turn
        ((product)    (and (ix:product? obj)
@@ -224,6 +225,10 @@
     (declare sx `(sexp ,(ix:tag->ident tag) ,@(join kvs^)))
     (validate sx)))
 
-(define (build! . args) (from-just (apply build args)))
+(define (build! . args)
+  (let ((o (apply build args)))
+       (if (just? o)
+           (from-just o)
+           (error "ix:build failed" (car args) (cdr args)))))
 
 )
