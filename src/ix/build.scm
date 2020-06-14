@@ -1,4 +1,4 @@
-(module ix.build (validate validate-as build build!)
+(module ix.build (validate validate-as build)
 
 (import scheme)
 (import chicken.base)
@@ -12,6 +12,7 @@
 
 (import (prefix ix.base ix:))
 (import ix.lens)
+(import ix.static)
 
 ; validate that a given ix sexp matches its declared prototype
 ; XXX TODO fn like `checked-parse tag text` might be nice to reduce boilerplate
@@ -32,7 +33,7 @@
      (define proto-tag (cond ((keyword? proto) 'keyword)
                              ((symbol? proto)  proto)
                              ((list? proto)    (car proto))
-                             (else             (error "bad prototype value" proto))))
+                             (else             (die "bad prototype value" proto))))
      (case proto-tag
        ; straightforward. if an optional value is present just check it normally
        ; optional is not an ix type, rather just a syntactic marker solely for prototypes
@@ -45,19 +46,19 @@
        ((sum)        (sum-find (cdr proto) obj))
        ; validate each type of the product in turn
        ((product)    (and (ix:product? obj)
-                          (= (length (ix:unwrap! obj)) (length (cdr proto)))
+                          (= (length (ix:unwrap obj)) (length (cdr proto)))
                           (let ((ret (map (lambda (t/o) (validate-value (car t/o) (cdr t/o)))
-                                          (zip* (cdr proto) (ix:unwrap! obj)))))
+                                          (zip* (cdr proto) (ix:unwrap obj)))))
                                (and (all* identity ret) (ix:wrap 'product ret)))))
        ; check if sexp, tags match, and the object itself validates
        ((sexp)       (and (ix:sexp? obj)
-                          (eq? (ix:ident->tag ((^.! ident) obj))
+                          (eq? (ix:ident->tag ((^. ident) obj))
                                (cadr proto))
                           (let ((ret (validate obj)))
                                (and (just? ret) (from-just ret)))))
        ; check if list and that all items validate against the list item type
        ((list)       (and (ix:list? obj)
-                          (let ((ret (map ((curry* validate-value) (cadr proto)) (ix:unwrap! obj))))
+                          (let ((ret (map ((curry* validate-value) (cadr proto)) (ix:unwrap obj))))
                                (and (all* identity ret) (ix:wrap 'list ret)))))
        ; check if identifier and compare by converting to tag, ie join to symbol with colons
        ((identifier) (and (ix:identifier? obj)
@@ -66,30 +67,30 @@
                           obj))
        ; straightforward
        ((keyword)    (and (ix:keyword? obj)
-                          (eq? proto (ix:unwrap! obj))
+                          (eq? proto (ix:unwrap obj))
                           (ix:well-typed? obj)
                           obj))
        ; if object is tagged enum, compare it to the list of allowed values from the prototype
        ; if it's a symbol, convert and recurse.we don't recheck in the cond arm for (hopeful) correctness sake
        ; as with number conversions below, all valid results ultimately come from the same brach
-       ((enum)       (cond ((and (ix:enum? obj) (memq (ix:unwrap! obj) (cdr proto)))
+       ((enum)       (cond ((and (ix:enum? obj) (memq (ix:unwrap obj) (cdr proto)))
                             obj)
                            ((ix:symbol? obj)
-                            (validate-value proto (ix:wrap 'enum (ix:unwrap! obj))))
+                            (validate-value proto (ix:wrap 'enum (ix:unwrap obj))))
                            (else #f)))
        ; check well-typedness if integer, otherwise if natural convert and recurse
        ; we only ever move from more specific to more general types and never touch the values
        ((integer)    (cond ((and (ix:integer? obj) (ix:well-typed? obj))
                             obj)
                            ((ix:natural? obj)
-                            (validate-value proto (ix:wrap 'integer (ix:unwrap! obj))))
+                            (validate-value proto (ix:wrap 'integer (ix:unwrap obj))))
                            (else #f)))
        ; as above. note this means a sci may contain a scheme fixnum, bignum, or flonum
        ; I haven't decided yet if this is a problem but it is unwise to throw away precision
        ((scientific) (cond ((and (ix:scientific? obj) (ix:well-typed? obj))
                             obj)
                            ((or (ix:natural? obj) (ix:integer? obj))
-                            (validate-value proto (ix:wrap 'scientific (ix:unwrap! obj))))
+                            (validate-value proto (ix:wrap 'scientific (ix:unwrap obj))))
                            (else #f)))
        ; straightforward
        ((symbol
@@ -100,7 +101,7 @@
                           (eq? proto-tag (car obj))
                           (ix:well-typed? obj)
                           obj))
-       ((else        (error "unimplemented type" proto-tag))))))
+       ((else        (die "unimplemented type" proto-tag))))))
    ; filter out unused optional kvs from the prototype
    ; specifically the three properties we desire are:
    ; * every obj key corresponds to a proto key
@@ -109,7 +110,7 @@
    ; validate-value covers one and three, and to get two we check the lengths before zip
    (filter-proto (lambda (proto obj acc)
      (cond ((null? proto) (reverse* acc))
-           ((just? ((^. (keyw (first* proto))) obj))
+           (((^.? (keyw (first* proto))) obj)
             (filter-proto (drop* 2 proto) obj (cons (second* proto) (cons (first* proto) acc))))
            ((and (list? (second* proto)) (eq? (car (second* proto)) 'optional))
             (filter-proto (drop* 2 proto) obj acc))
@@ -132,7 +133,7 @@
    ; load prototype by tag, filter optionals, validate all keys and values, rebuild the object if all checks succeed
    (validate-typed (lambda (sx i) (do/m <maybe>
      (declare sx-kvs (cddr sx))
-     (proto <- (ix:prototype (ix:ident->tag i)))
+     (proto <- (to-maybe (ix:prototype (ix:ident->tag i))))
      (filtered-proto <- (to-maybe (filter-proto (cdr proto) sx-kvs '())))
      (to-maybe (= (length filtered-proto) (length sx-kvs)))
      (obj-body <- (let ((ret (map (lambda (p) (validate-value (car p) (cdr p)))
@@ -140,25 +141,24 @@
                        (if (all* identity ret) (return ret) (fail))))
      (return `(sexp ,i ,@obj-body)))))
     (validate (lambda (sx) (do/m <maybe>
-     (i <- ((^. ident) sx))
+     (i <- (to-maybe (and (ix:sexp? sx) ((^. ident) sx))))
      (if (eq? (ix:ident->tag i) 'ix:*)
          (validate-generic sx)
          (validate-typed sx i))))))
-    validate))
+    ; XXX refactor obv, we want to error inside and report what actually went wrong lol
+    (lambda (sx) (let ((r (validate sx))) (if (just? r) (from-just r) (die "failed to validate: ~S" sx))))))
 
 ; pretty self-explanatory
 (define (validate-as tag sx)
-  (if (and (ix:sexp? sx)
-           (eq? (ix:ident->tag ((^.! ident) sx)) tag))
-      (validate sx)
-      (<maybe>-fail)))
+  (let ((sxtag (and (ix:sexp? sx) (ix:ident->tag ((^. ident) sx)))))
+      (if (eqv? sxtag tag) (validate sx) (die "tag mismatch: expected ~S, got ~S" tag sxtag))))
 
 ; this wraps a given value with a given type
 ; split out from its parent below because it needs to recurse
 ; we do string conversions here rather than in vv to avoid ever constructing invalid wrapped items
 (define (wrap-build-value type value)
   (define type-tag (if (symbol? type) type (car type)))
-  (define raw-value (if (ix:ix? value) (ix:unwrap! value) value))
+  (define raw-value (if (ix:ix? value) (ix:unwrap value) value))
   (case type-tag
     ; all these we can just add the tag to the raw value
     ((sexp uuid string boolean) (ix:wrap type-tag raw-value))
@@ -176,10 +176,10 @@
                   (let ((full (find* (lambda (t) (and (list? t) (eq? (car t) (car value)))) (cdr type))))
                        (wrap-build-value full value)))
                  ((ix:ix? value) value)
-                 (else (error "sum type inference is not supported, tag your values"))))
+                 (else (die "sum type inference is not supported, tag your values"))))
     ; this is explicitly for kv pairs
-    ((keyword identifier) (error "keywords and identifiers should not be here"))
-    (else (error "type not implemented" type value))))
+    ((keyword identifier) (die "keywords and identifiers should not be here"))
+    (else (die "type ~S not implemented" type))))
 
 ; this extracts a type and value for a given keyword and handles optionalness
 (define (wrap-build-kv-pair types kvs kw)
@@ -194,12 +194,6 @@
                   ((and type is-optional) '())
                   (else #f))))
 
-; ix:* is the standard identifier for arbitrary ix
-(define (build tag . kvs)
-  (if (and (eqv? tag 'ix:*) (even? (length kvs)))
-      (build-free kvs)
-      (build-typed tag kvs)))
-
 ; make sure we have pairs of keys and well-typed values, then just assemble it
 ; values must be wrapped!! I am not writing type inference, if needed just parse from string
 (define (build-free kvs)
@@ -212,23 +206,27 @@
                (fail))))
       (chop kvs 2))))
     (declare sx `(sexp (identifier ix *) ,@(join k/vs)))
-    (validate sx)))
+    (to-maybe (validate sx))))
 
 ; takes an object tag and keyword arguments for all its fields
 ; prototype lookup, merge prototype types with input values, validate the result
 (define (build-typed tag kvs)
   (do/m <maybe>
-    (proto <- (ix:prototype tag))
+    (proto <- (to-maybe (ix:prototype tag)))
     (to-maybe (all* (lambda (k) (get-keyword k (cdr proto))) (filter* keyword? kvs)))
     (kvs^ <- (sequence (map (lambda (k) (wrap-build-kv-pair (cdr proto) kvs k))
                             (filter* keyword? proto))))
     (declare sx `(sexp ,(ix:tag->ident tag) ,@(join kvs^)))
-    (validate sx)))
+    (to-maybe (validate sx))))
 
-(define (build! . args)
-  (let ((o (apply build args)))
-       (if (just? o)
-           (from-just o)
-           (error "ix:build failed" (car args) (cdr args)))))
+; ix:* is the standard identifier for arbitrary ix
+(define (build tag . kvs)
+  (let ((r (if (and (eqv? tag 'ix:*)
+                    (even? (length kvs)))
+               (build-free kvs)
+               (build-typed tag kvs))))
+       (if (just? r)
+           (from-just r)
+           (die "build failed: ~S / ~S" tag kvs))))
 
 )

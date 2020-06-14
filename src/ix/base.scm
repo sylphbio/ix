@@ -1,6 +1,6 @@
 (module ix.base (register prototype ix? primitive? sexp? list? product? enum? identifier?
                  keyword? symbol? uuid? string? integer? natural? scientific? boolean?
-                 well-typed? tag->ident ident->tag ident=? wrap unwrap unwrap!)
+                 well-typed? tag->ident ident->tag ident=? wrap unwrap)
 
 (import (except scheme list? string? symbol? integer? number? boolean?))
 (import (prefix scheme scheme:))
@@ -11,27 +11,16 @@
 (import (prefix chicken.keyword chicken:))
 
 (import tabulae)
-(import tabulae.monad)
 (import (prefix uuid uuid:))
 
 (import ix.static)
-
-; XXX TODO FIXME should I make the monadic interface an optional extension?
-; I wrote this "library" as a piece of a larger project and then gradually split it out
-; returning monadic values feels like an impediment now tho, like the ix library ought to stand alone
-; it's also true I need error messages and the maybe monad is not suited for that
-; thinking... perhaps I die with errors wherever reasonable
-; then have a separate ix.monad module with names like parse:ix-m or whatever
-; that call the normal functions in a condition-case and catch into Nothing
-; it is also absolutely true that like 90% of my access calls I use ^.!! lol
-; also it is true I'm weirdly inconsistent about returning false (eg from stringify) or whatever
 
 ; alist. only set by register, only accessed by prototype
 (define prototypes '())
 
 ; takes a list of prototypes, uses tag to make alist
 (define (register plist)
-  (when (find* (lambda (p) (eqv? (car p) 'ix:*)) plist) (error "cannot override the special identifier ix:*"))
+  (when (find* (lambda (p) (eqv? (car p) 'ix:*)) plist) (die "cannot override the special identifier ix:*"))
   (define pts (foldl (lambda (acc p) (alist-update (car p) p acc))
                      prototypes
                      plist))
@@ -40,7 +29,7 @@
 ; this is used by build/validate, but users can look up prototypes for whatever purpose if they like
 ; XXX returns a maybe but I'm stripping monads out of the interface soon
 (define (prototype tag)
-  (to-maybe (alist-ref tag prototypes)))
+  (alist-ref tag prototypes))
 
 (define (is-type t v)
   (and (scheme:list? v)
@@ -80,19 +69,15 @@
       `(,t ,@v)
       `(,t ,v)))
 
-; XXX this definition of unwrap makes no sense for sexp
-; it should strip the identifier so it can at least be used with chicken keyword functions
-; that said unwrapping a sexp is of dubious value anyway maybe I should just ban it
 ; XXX should this recursively unwrap lists and products?
+; XXX impl that lens suggestion lol
 (define (unwrap v)
-  (cond ((or (sexp? v) (list? v) (product? v) (identifier? v))
-         (<maybe>-return (cdr v)))
-        ((ix? v)
-         (<maybe>-return (cadr v)))
-        (else (<maybe>-fail))))
+  (cond ((sexp? v) (die "unwrapping sexp is nonsensical, extract the key/val list via lens"))
+        ((or (list? v) (product? v) (identifier? v)) (cdr v))
+        ((ix? v) (cadr v))
+        (else (die "cannot unwrap non-ix value: ~S" v))))
 
-(define (unwrap! v) (from-just (unwrap v)))
-
+; XXX change these to "identifier", I don't want a profusion of shorthands
 (define (tag->ident t)
   `(identifier ,@(map string->symbol (string-split (symbol->string t) ":"))))
 
@@ -116,7 +101,7 @@
   (if (not (ix? tv))
       #f
       (let ((t (car tv))
-            (v (unwrap! tv)))
+            (v (if (sexp? tv) (cdr tv) (unwrap tv))))
            (case t
              ((sexp list product) (all* well-typed? v))
              ((identifier) (and (not (null? v)) (all* scheme:symbol? v)))

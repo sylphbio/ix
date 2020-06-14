@@ -44,6 +44,7 @@
 ; XXX consider whether to restrict toplevel to "sexp or list of sexp" rather than "sexp or list"
 ; XXX should probably call validate at the end so types get fixed up
 ; XXX can I have like a parse-with to allow prototypes to be sent over the wire?
+; XXX this is not long for the world now that I'm dumping the monad interface in favor of normal error messages
 (define (ix-parser #!key flat) (letrec
   ((untroublesome-p (sat (lambda (c) (memv c untroublesome))))
    (keyval (do/m <parser>
@@ -122,8 +123,13 @@
      (return `(sexp ,i ,@(join kv))))))
   (<?> ix-sexp ix-list)))
 
-(define (ix sx) (parse->maybe ((ix-parser) sx)))
-(define (flat-ix sx) (parse->maybe ((ix-parser :flat #t) sx)))
+(define (ix sx)
+  (let ((r (parse->maybe ((ix-parser) sx))))
+       (if (just? r) (from-just r) (die "failed to parse: ~S" sx))))
+
+(define (flat-ix sx)
+  (let ((r (parse->maybe ((ix-parser :flat #t) sx))))
+       (if (just? r) (from-just r) (die "failed to flat parse: ~S" sx))))
 
 ; so the way json->ix works is, first to cut corners I parse the json to scheme with a library
 ; this produces vectors of pairs for objects, lists for arrays, unspecified for null, what you'd expect for rest
@@ -143,8 +149,8 @@
            ((exact-integer? val) (wrap tw 'integer val))
            ((number? val) (wrap tw 'scientific val))
            ((boolean? val) (wrap tw 'boolean val))
-           ((eqv? (void) val) (error "null is (emphatically) not supported"))
-           (else (error "not a value" val)))))
+           ((eqv? (void) val) (die "null is (emphatically) not supported"))
+           (else (die "not a value" val)))))
    ; so we convert to list and check for an identifier, defaulting to ix:* of course
    ; for a generic ix object, we need to wrap all our values (not keywords) before calling build
    ; but for a typed ix object, we leave them unwrapped, since our prototype promotes certain types up from strings
@@ -166,7 +172,7 @@
      (let ((raw (call-with-input-string js json-read)))
           (cond ((vector? raw) (parse-obj raw))
                 ((and (list? raw) (all* vector? raw)) (map parse-obj raw))
-                (else (error "json->ix accepts an object or a list of objects" js)))))))
+                (else (die "json->ix accepts an object or a list of objects" js)))))))
   json->ix))
 
 )

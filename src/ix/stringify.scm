@@ -9,6 +9,9 @@
 
 (import tabulae)
 
+(import (prefix ix.base ix:))
+(import ix.static)
+
 ; XXX FIXME when I impl escapes note this naive treatment of string is inadequate
 ; specifically because scheme has nonstandard multichar escapes like \null and \tab
 ; I'm... inclined to ban null, support the usual whitespace escapes plus backslash and quote
@@ -26,7 +29,7 @@
          ((uuid string) (<> "\"" (cadr sx) "\""))
          ((integer natural scientific) (number->string (cadr sx)))
          ((boolean) (if (cadr sx) "#t" "#f"))
-         (else #f))))
+         (else (die "malformed input: ~S" sx)))))
 
 ; js types are number/string/object/array/bool/null
 ; sexp/list/kw/string/bool are encoded directly
@@ -50,6 +53,6 @@
     ((uuid string) (<> "\"" (cadr sx) "\""))
     ((integer natural scientific) (<> "\"" (number->string (cadr sx)) "\""))
     ((boolean) (if (cadr sx) "true" "false"))
-    (else #f)))
+    (else (die "malformed input: ~S" sx))))
 
 )

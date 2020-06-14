@@ -3,8 +3,11 @@
 (import scheme)
 (import chicken.base)
 (import chicken.type)
-(import chicken.format)
 (import chicken.string)
+(import chicken.format)
+(import chicken.condition)
+
+(import tabulae)
 
 ; allowed "special" characters in symbols and keywwords
 ; symbols additionally permit non-leading colons, so they can carry identifiers
@@ -18,5 +21,9 @@
 ; for now it's a-zA-Z0-9 and these symbols, I would like to at least support accents and japanese tho
 ; afaik unicode is so absurdly complicated there's no way to enforce "ok do whatever except no weird shit ok!!"
 (define untroublesome (string->list "$%&*+-./;<=>?@^_~"))
+
+; XXX I think in time I will migrate this into tabulae
+; say, when I have pontiff extensions, and can load an exn object with line and function
+(define (die msg . args) (abort (apply sprintf `(,(<> "ix error: " msg "\n") ,@args))))
 
 )
