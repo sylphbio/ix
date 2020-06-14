@@ -42,6 +42,8 @@
 ; this plus the comment thing makes me think I should write a char-by-char parser
 ; XXX TODO FIXME consume leading whitespace
 ; XXX consider whether to restrict toplevel to "sexp or list of sexp" rather than "sexp or list"
+; XXX should probably call validate at the end so types get fixed up
+; XXX can I have like a parse-with to allow prototypes to be sent over the wire?
 (define (ix-parser #!key flat) (letrec
   ((untroublesome-p (sat (lambda (c) (memv c untroublesome))))
    (keyval (do/m <parser>

@@ -12,6 +12,11 @@
 (import uuid)
 (import test)
 
+; XXX TODO FIXME this fucking sucks
+; I think what I want is to split the gneral ix testing into two pieces
+; declarative alist or whatever of like, ix text, ix object, prototype if applicable, json text, etc
+; and then a battery function that does all the various things like make sure it parses, builds whatever
+
 (test-group "ix"
   (define in "(some:object :key \"hello\" :t #t :f #f :another-key (subtask :key \"omg\" :n -97 :sym hello :ll [1 2 3] :sci -2.3e+77))")
   (define out `(sexp (identifier some object) (keyword :key) (string "hello") (keyword :t) (boolean #t) (keyword :f) (boolean #f) (keyword :another-key) (sexp (identifier subtask) (keyword :key) (string "omg") (keyword :n) (integer -97) (keyword :sym) (symbol hello) (keyword :ll) (list (natural 1) (natural 2) (natural 3)) (keyword :sci) (scientific -2.3e+77))))
@@ -43,10 +48,9 @@
   (test "list index composes (scheme)" `(Just (natural 4)) ((^. (idx 0) (keyw :l) (idx 1)) `(,simple4)))
   (define id (uuid))
   (define all-prims `(ix:test :sym symbol :uuid uuid :str string :int integer :nat natural :sci scientific :t boolean :f boolean))
-  (ix:init (lambda (_) `(Just ,all-prims)))
+  (ix:register `(,all-prims))
   (define prims-s (<> "(ix:test :sym a :uuid \"" id "\" :str \"ok\" :int -4 :nat 3 :sci 4.5 :t #t :f #f)"))
   (define prims-oj (parse:ix prims-s))
-  (printf "MAZ id: ~S\n" id)
   (test "build all primitive types (proto)" prims-oj (ix:build 'ix:test :sym 'a :uuid id :str "ok" :int -4 :nat 3 :sci 4.5 :t #t :f #f))
   (test-assert "all primitive types well-typed (proto)" (ix:well-typed? (from-just (ix:build 'ix:test :sym 'a :uuid id :str "ok" :int -4 :nat 3 :sci 4.5 :t #t :f #f))))
   (define prims-s-un (<> "(ix:* :sym a :uuid \"" id "\" :str \"ok\" :int -4 :nat 3 :sci 4.5 :t #t :f #f)"))
@@ -56,12 +60,12 @@
   (test "validate empty" `(Just (sexp (identifier ix *))) (ix:validate `(sexp (identifier ix *))))
   (test "build empty" `(Just (sexp (identifier ix *))) (ix:build 'ix:*))
   (define bare-proto `(ix:test))
-  (ix:init (lambda (_) `(Just ,bare-proto)))
+  (ix:register `(,bare-proto))
   (test "zero keyword proto builds" `(Just (sexp (identifier ix test))) (ix:build 'ix:test))
   (test "zero keyword proto fails when given something" 'Nothing (ix:build 'ix:test :a 1))
   (define sum-prod-proto `(ix:test :s (sum natural string (product natural natural))
                                    :p (product (list string) (sum natural string))))
-  (ix:init (lambda (_) `(Just ,sum-prod-proto)))
+  (ix:register `(,sum-prod-proto))
   (define spo1 `(sexp (identifier ix test) (keyword :s) (natural 1) (keyword :p) (product (list (string "hello")) (natural 2))))
   (define spo2 `(sexp (identifier ix test) (keyword :s) (string "a") (keyword :p) (product (list (string "s")) (string "d"))))
   (define spo3 `(sexp (identifier ix test) (keyword :s) (product (natural 3) (natural 4)) (keyword :p) (product (list (string "f")) (string "g"))))
@@ -79,7 +83,7 @@
   (test "sum/product build take 2" `(Just ,spo2) (ix:build 'ix:test :s `(string "a") :p `(("s") (string "d"))))
   (test "sum/product build take 3" `(Just ,spo3) (ix:build 'ix:test :s `(product 3 4) :p `(("f") (string "g"))))
   (define sum-list-proto `(ix:test :l (list (sum natural string))))
-  (ix:init (lambda (_) `(Just ,sum-list-proto)))
+  (ix:register `(,sum-list-proto))
   (define slo1 `(sexp (identifier ix test) (keyword :l) (list (natural 1) (natural 2) (natural 3))))
   (define slo2 `(sexp (identifier ix test) (keyword :l) (list (natural 4) (string "five") (natural 6))))
   (define slo3 `(sexp (identifier ix test) (keyword :l) (list (natural 7) (symbol eight))))
@@ -96,7 +100,7 @@
   (test "heterogenous sum list builds" `(Just ,slo2) (ix:build 'ix:test :l `((natural 4) (string "five") (natural 6))))
   (test "ill-typed sum list fails to build" 'Nothing (ix:build 'ix:test :l `((natural 7) (symbol eight))))
   (define opt-proto `(ix:test :r1 natural :o1 (optional natural) :r2 natural :o2 (optional natural)))
-  (ix:init (lambda (_) `(Just ,opt-proto)))
+  (ix:register `(,opt-proto))
   (define soo1 `(sexp (identifier ix test) (keyword :r1) (natural 1) (keyword :o1) (natural 1) (keyword :r2) (natural 2) (keyword :o2) (natural 2)))
   (define soo2 `(sexp (identifier ix test) (keyword :r1) (natural 1) (keyword :r2) (natural 2) (keyword :o2) (natural 2)))
   (define soo3 `(sexp (identifier ix test) (keyword :r1) (natural 1) (keyword :r2) (natural 2)))
@@ -120,7 +124,16 @@
 
 (test-group "json"
   (define in "(some:object :key \"hello\" :t #t :f #f :another-key (subtask :key \"omg\" :n -97 :sym hello :ll [1 2 3] :sci -2.3e+77))")
-  (printf "MAZ json: ~A\n" (stringify:ix->json (from-just (parse:ix in)))))
+  (printf "MAZ stringify json: ~A\n" (stringify:ix->json (from-just (parse:ix in))))
+  (define all-prims `(ix:test :sym symbol :uuid uuid :str string :int integer :nat natural :sci scientific :t boolean :f boolean))
+  (ix:register `(,all-prims))
+  (printf "MAZ parse json: ~S\n" (parse:json->ix "[{\"key\": \"val\", \"list\": [\"one\", 2, -0, +9.4, true]}]"))
+  (define id (uuid))
+  (define all-prim-json #<#EOM
+{ "####identifier": "ix:test", "sym": "hello", "uuid": "#id", "str": "ok", "int": 1, "nat": "2", "sci": "3.4", "t": true, "f": false }
+EOM
+)
+  (printf "MAZ parse json proto: ~S\n" (parse:json->ix all-prim-json)))
 
 (test-exit)
 

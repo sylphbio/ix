@@ -1,4 +1,4 @@
-(module ix.base (init prototype ix? primitive? sexp? list? product? enum? identifier?
+(module ix.base (register prototype ix? primitive? sexp? list? product? enum? identifier?
                  keyword? symbol? uuid? string? integer? natural? scientific? boolean?
                  well-typed? tag->ident ident->tag ident=? wrap unwrap unwrap!)
 
@@ -7,6 +7,7 @@
 (import chicken.base)
 (import chicken.type)
 (import chicken.string)
+(import chicken.format)
 (import (prefix chicken.keyword chicken:))
 
 (import tabulae)
@@ -25,9 +26,21 @@
 ; it is also absolutely true that like 90% of my access calls I use ^.!! lol
 ; also it is true I'm weirdly inconsistent about returning false (eg from stringify) or whatever
 
-; prototype isn't called for ix:* so consequently build can work with that (and only that) identifier sans init
-(define (prototype _) (error "must init ix:prototype with a function of type `tag -> maybe prototype`"))
-(define (init f) (set! prototype f))
+; alist. only set by register, only accessed by prototype
+(define prototypes '())
+
+; takes a list of prototypes, uses tag to make alist
+(define (register plist)
+  (when (find* (lambda (p) (eqv? (car p) 'ix:*)) plist) (error "cannot override the special identifier ix:*"))
+  (define pts (foldl (lambda (acc p) (alist-update (car p) p acc))
+                     prototypes
+                     plist))
+  (set! prototypes pts))
+
+; this is used by build/validate, but users can look up prototypes for whatever purpose if they like
+; XXX returns a maybe but I'm stripping monads out of the interface soon
+(define (prototype tag)
+  (to-maybe (alist-ref tag prototypes)))
 
 (define (is-type t v)
   (and (scheme:list? v)
@@ -69,7 +82,7 @@
 
 ; XXX this definition of unwrap makes no sense for sexp
 ; it should strip the identifier so it can at least be used with chicken keyword functions
-; that said unwrapping a sexp is of dubious value anyway
+; that said unwrapping a sexp is of dubious value anyway maybe I should just ban it
 ; XXX should this recursively unwrap lists and products?
 (define (unwrap v)
   (cond ((or (sexp? v) (list? v) (product? v) (identifier? v))
