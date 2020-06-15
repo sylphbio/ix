@@ -158,10 +158,12 @@
 ; we do string conversions here rather than in vv to avoid ever constructing invalid wrapped items
 (define (wrap-build-value type value)
   (define type-tag (if (symbol? type) type (car type)))
-  (define raw-value (if (ix:ix? value) (ix:unwrap value) value))
+  (define raw-value (if (and (ix:ix? value) (not (ix:sexp? value))) (ix:unwrap value) value))
   (case type-tag
+    ; sexp cannot be unwrapped
+    ((sexp) raw-value)
     ; all these we can just add the tag to the raw value
-    ((sexp uuid string boolean) (ix:wrap type-tag raw-value))
+    ((uuid string boolean) (ix:wrap type-tag raw-value))
     ; these may upcast from string
     ((enum symbol) (ix:wrap type-tag (if (string? raw-value) (string->symbol raw-value) raw-value)))
     ((integer natural scientific) (ix:wrap type-tag (if (string? raw-value) (string->number raw-value) raw-value)))
