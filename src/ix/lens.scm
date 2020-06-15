@@ -112,6 +112,6 @@
        (if (just? r) (from-just r) (die "%~ failed inside: ~S" l)))))
 
 (define (^.? . args) (lambda (l) (just? ((apply get args) l))))
-(define (^.v . args) (ix:unwrap (apply ^. args)))
+(define (^.v . args) (lambda (l) (ix:unwrap ((apply ^. args) l))))
 
 )
