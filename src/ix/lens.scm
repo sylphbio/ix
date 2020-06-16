@@ -101,15 +101,15 @@
 
 (define (^. . args) (lambda (l)
   (let ((r ((apply get args) l)))
-       (if (just? r) (from-just r) (die "^. failed inside: ~S" l)))))
+       (if (just? r) (from-just r) #f))))
 
 (define (.~ . args) (lambda (l)
   (let ((r ((apply set args) l)))
-       (if (just? r) (from-just r) (die ".~ failed inside: ~S" l)))))
+       (if (just? r) (from-just r) #f))))
 
 (define (%~ . args) (lambda (l)
   (let ((r ((apply app args) l)))
-       (if (just? r) (from-just r) (die "%~ failed inside: ~S" l)))))
+       (if (just? r) (from-just r) #f))))
 
 (define (^.? . args) (lambda (l) (just? ((apply get args) l))))
 (define (^.v . args) (lambda (l) (ix:unwrap ((apply ^. args) l))))
