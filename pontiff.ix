@@ -13,7 +13,8 @@
                      "-inline" "-inline-global" "-optimize-leaf-routines"]
          :cc clang
          :ld lld
-         :artifacts [(pontiff:library :name ix :root ix) ]
+         :artifacts [(pontiff:library :name ix :root ix)
+                     (pontiff:library :name ix.monad :root ix.monad)]
          :tests [(pontiff:executable :name unit :root test.unit)
                  (pontiff:executable :name integration :root test.integration)]
          :dependencies [(pontiff:directory :name tabulae :path "/home/alice/work/garden/tabulae")]

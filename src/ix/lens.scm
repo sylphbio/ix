@@ -1,4 +1,4 @@
-(module ix.lens (keyw idx ident ^. .~ %~ ^.? ^.v)
+(module ix.lens (keyw idx ident ^. .~ %~ ^.? ^.v ^.M .~M %~M)
 
 (import scheme)
 (import chicken.base)
@@ -113,5 +113,10 @@
 
 (define (^.? . args) (lambda (l) (just? ((apply get args) l))))
 (define (^.v . args) (lambda (l) (ix:unwrap ((apply ^. args) l))))
+
+; I hate making this not part of ix.monad but it really just makes sense to do it this way
+(define ^.M get)
+(define .~M set)
+(define %~M app)
 
 )
