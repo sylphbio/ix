@@ -17,7 +17,7 @@
                      (pontiff:library :name ix.monad :root ix.monad)]
          :tests [(pontiff:executable :name unit :root test.unit)
                  (pontiff:executable :name integration :root test.integration)]
-         :dependencies [(pontiff:directory :name tabulae :path "/home/alice/work/garden/tabulae")]
+         :dependencies [(pontiff:repository :name tabulae :vcs git :url "https://github.com/sylphbio/tabulae.git")]
          :resolver alice
          :egg-dependencies [test uuid json]
          :egg-resolver chicken-install)
