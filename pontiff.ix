@@ -19,5 +19,6 @@
                  (pontiff:executable :name integration :root test.integration)]
          :dependencies [(pontiff:repository :name tabulae :vcs git :url "https://github.com/sylphbio/tabulae.git")]
          :resolver alice
+         :lib-dependencies []
          :egg-dependencies [test uuid json]
          :egg-resolver chicken-install)
