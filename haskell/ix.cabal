@@ -1,0 +1,12 @@
+cabal-version:       >=1.10
+name:                ix
+version:             0.1.0.0
+build-type:          Simple
+
+executable ix
+  main-is:             Main.hs
+  hs-source-dirs:      src
+  build-depends:       base >=4.13 && <4.14
+                     , attoparsec
+                     , bytestring
+  default-language:    Haskell2010
