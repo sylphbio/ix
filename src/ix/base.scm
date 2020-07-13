@@ -20,7 +20,8 @@
 
 ; takes a list of prototypes, uses tag to make alist
 (define (register plist)
-  (when (find* (lambda (p) (eqv? (car p) 'ix:*)) plist) (die "cannot override the special identifier ix:*"))
+  (when (find* (lambda (p) (eqv? (car p) 'ix)) plist) (die "cannot override the special identifier ix"))
+  (when (find* (lambda (p) (eqv? (car p) '*)) plist) (die "* has special meaning for prototypes and is disallowed"))
   (define pts (foldl (lambda (acc p) (alist-update (car p) p acc))
                      prototypes
                      plist))

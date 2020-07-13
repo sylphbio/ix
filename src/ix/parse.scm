@@ -151,7 +151,7 @@
            ((boolean? val) (wrap tw 'boolean val))
            ((eqv? (void) val) (die "null is (emphatically) not supported"))
            (else (die "not a value" val)))))
-   ; so we convert to list and check for an identifier, defaulting to ix:* of course
+   ; so we convert to list and check for an identifier, defaulting to generic ix of course
    ; for a generic ix object, we need to wrap all our values (not keywords) before calling build
    ; but for a typed ix object, we leave them unwrapped, since our prototype promotes certain types up from strings
    (parse-obj (lambda (vec)
@@ -159,8 +159,8 @@
                                     (vector->list vec)))
             (tag (if (not (null? (first* ident/rest)))
                      (string->symbol (cdar (first* ident/rest)))
-                     'ix:*))
-            (build-args (join (map (lambda (k/v) (parse-kv (eqv? tag 'ix:*) (car k/v) (cdr k/v)))
+                     'ix))
+            (build-args (join (map (lambda (k/v) (parse-kv (eqv? tag 'ix) (car k/v) (cdr k/v)))
                                    (second* ident/rest)))))
            (apply ix:build `(,tag ,@build-args)))))
    ; don't bother checking eg that symbols are in the charset, build checks well-typedness

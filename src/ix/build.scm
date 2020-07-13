@@ -51,9 +51,10 @@
                                           (zip* (cdr proto) (ix:unwrap obj)))))
                                (and (all* identity ret) (ix:wrap 'product ret)))))
        ; check if sexp, tags match, and the object itself validates
+       ; star is a special tag matching any valid sexp
        ((sexp)       (and (ix:sexp? obj)
-                          (eq? (ix:ident->tag ((^. ident) obj))
-                               (cadr proto))
+                          (or (eq? (ix:ident->tag ((^. ident) obj)) (cadr proto))
+                              (eq? (cadr proto) '*))
                           (let ((ret (validate obj)))
                                (and (just? ret) (from-just ret)))))
        ; check if list and that all items validate against the list item type
@@ -115,13 +116,13 @@
            ((and (list? (second* proto)) (eq? (car (second* proto)) 'optional))
             (filter-proto (drop* 2 proto) obj acc))
            (else #f))))
-   ; special validate for ix:* that doesn't depend on a prototype
+   ; special validate for generic ix that doesn't depend on a prototype
    ; XXX TODO FIXME this is wrong in a potentially very dangerous way because it short-circuits recursive transformations
    ; what it should actually do is... three-way branch:
    ; * primitive, check well-typed
    ; * sexp, validate (which further branches in ident to generic/typed)
    ; * list/product, map this hypothetical three-way branch over all members
-   ; the other approach is to reuse all the typed machinery and have a function that generates fake prototypes for ix:*
+   ; the other approach is to reuse all the typed machinery and have a function that generates fake prototypes for generic ix
    ; this introduces its own problems tho, namely how to resolve elided sum and list types
    ; for now I will do the simple thing and just, not nest ambiguous typed sexps in untyped sexps
    ; but moreover we are way fucking past the point where we need to formalize ix, the semantics are becoming very complicated
@@ -142,7 +143,7 @@
      (return `(sexp ,i ,@obj-body)))))
     (validate (lambda (sx) (do/m <maybe>
      (i <- (to-maybe (and (ix:sexp? sx) ((^. ident) sx))))
-     (if (eq? (ix:ident->tag i) 'ix:*)
+     (if (eq? (ix:ident->tag i) 'ix)
          (validate-generic sx)
          (validate-typed sx i))))))
     ; XXX refactor obv, we want to error inside and report what actually went wrong lol
@@ -207,7 +208,7 @@
                (return `(,(ix:wrap 'keyword k) ,v))
                (fail))))
       (chop kvs 2))))
-    (declare sx `(sexp (identifier ix *) ,@(join k/vs)))
+    (declare sx `(sexp (identifier ix) ,@(join k/vs)))
     (to-maybe (validate sx))))
 
 ; takes an object tag and keyword arguments for all its fields
@@ -221,9 +222,9 @@
     (declare sx `(sexp ,(ix:tag->ident tag) ,@(join kvs^)))
     (to-maybe (validate sx))))
 
-; ix:* is the standard identifier for arbitrary ix
+; ix is the standard identifier for arbitrary ix
 (define (build tag . kvs)
-  (let ((r (if (and (eqv? tag 'ix:*)
+  (let ((r (if (and (eqv? tag 'ix)
                     (even? (length kvs)))
                (build-free kvs)
                (build-typed tag kvs))))
