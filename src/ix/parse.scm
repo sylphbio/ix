@@ -1,4 +1,4 @@
-(module ix.parse (ix flat-ix json->ix)
+(module ix.parse (ix flat-ix json->ix prototype)
 
 (import scheme)
 (import chicken.base)
@@ -174,5 +174,8 @@
                 ((and (list? raw) (all* vector? raw)) (map parse-obj raw))
                 (else (die "json->ix accepts an object or a list of objects" js)))))))
   json->ix))
+
+; XXX TODO FIXME I have better things to do rn
+(define (prototype p) (call-with-input-string p read))
 
 )

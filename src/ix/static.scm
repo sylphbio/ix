@@ -26,4 +26,19 @@
 ; say, when I have pontiff extensions, and can load an exn object with line and function
 (define (die msg . args) (abort (apply sprintf `(,(<> "ix error: " msg "\n") ,@args))))
 
+; what it says
+(define ix-tags `(sexp list product sum enum identifier keyword symbol uuid string integer natural scientific boolean))
+
+; identifier and keyword are purely structural and do not appear tagged in prototypes
+(define prototype-tags (difference* ix-tags `(identifier keyword)))
+
+; sum is reified into a concrete type on objects
+(define object-tags (difference* ix-tags `(sum)))
+
+; these appear on prototypes in list head position
+(define complex-tags `(sexp list product sum enum identifier))
+
+; these appear on prototypes as simple symbols
+(define primitive-tags (difference* ix-tags complex-tags))
+
 )

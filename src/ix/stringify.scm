@@ -1,4 +1,4 @@
-(module ix.stringify (ix ix->json)
+(module ix.stringify (ix ix->json prototype)
 
 (import scheme)
 (import chicken.base)
@@ -54,5 +54,13 @@
     ((integer natural scientific) (<> "\"" (number->string (cadr sx)) "\""))
     ((boolean) (if (cadr sx) "true" "false"))
     (else (die "malformed input: ~S" sx))))
+
+; dead simple
+; XXX this could check prototype-tags but it would need some context awareness to handle sexp idents correctly
+(define (prototype p)
+  (cond ((list? p) (<> "(" (string-intersperse (map prototype p)) ")"))
+        ((keyword? p) (<> ":" (keyword->string p)))
+        ((symbol? p) (symbol->string p))
+        (else (error "invalid type in prototype" p))))
 
 )
