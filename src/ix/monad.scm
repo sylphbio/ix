@@ -14,7 +14,7 @@
 (import ix.lens)
 
 (define (monadify f) (lambda (#!rest args)
-  (to-maybe (condition-case (apply f args) (() 'Nothing)))))
+  (to-maybe (condition-case (apply f args) (() #f)))))
 
 (define parse:ixM (monadify parse:ix))
 (define parse:flat-ixM (monadify parse:flat-ix))
