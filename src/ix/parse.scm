@@ -93,6 +93,9 @@
      (return (void))
      (s <- (many1 (<?> alphanum untroublesome-p (value #\:))))
      (return `(identifier ,@(map string->symbol (string-split s ":"))))))
+   ; XXX TODO FIXME we should require symbol leads with an alpha
+   ; that way we can guarentee anything leading with a num or sign is a number
+   ; or wait no more like, alpha or symbol aside from sign (and maybe currency?)
    (ix-symbol (do/m <parser>
      (return (void))
      (s1 <- (<?> alphanum untroublesome-p))

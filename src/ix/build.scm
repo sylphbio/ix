@@ -150,6 +150,11 @@
     (lambda (sx) (let ((r (validate sx))) (if (just? r) (from-just r) (die "failed to validate: ~S" sx))))))
 
 ; pretty self-explanatory
+; XXX TODO I'd like to be able to validate anything as any ix type
+; but I'd need to split validate-value out and it's too enmeshed in all the other recursive calls
+; overall I've been very undisciplined tho and honestly want to rewrite all the build/validate machinery from scratch
+; XXX also wanted to have a thing to indicate I want certain optional fields to be there
+; XXX TODO FIXME I should just write an inference function, I can use that once I split out lex and parse too
 (define (validate-as tag sx)
   (let ((sxtag (and (ix:sexp? sx) (ix:ident->tag ((^. ident) sx)))))
       (if (eqv? sxtag tag) (validate sx) (die "tag mismatch: expected ~S, got ~S" tag sxtag))))
@@ -179,7 +184,7 @@
                   (let ((full (find* (lambda (t) (and (list? t) (eq? (car t) (car value)))) (cdr type))))
                        (wrap-build-value full value)))
                  ((ix:ix? value) value)
-                 (else (die "sum type inference is not supported, tag your values"))))
+                 (else (die "sum type inference is not supported yet, please tag your values" value))))
     ; this is explicitly for kv pairs
     ((keyword identifier) (die "keywords and identifiers should not be here"))
     (else (die "type ~S not implemented" type))))
