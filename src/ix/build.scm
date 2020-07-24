@@ -184,7 +184,7 @@
                   (let ((full (find* (lambda (t) (and (list? t) (eq? (car t) (car value)))) (cdr type))))
                        (wrap-build-value full value)))
                  ((ix:ix? value) value)
-                 (else (die "sum type inference is not supported yet, please tag your values" value))))
+                 (else (die "sum type inference is not supported yet, please tag your values: ~S" value))))
     ; this is explicitly for kv pairs
     ((keyword identifier) (die "keywords and identifiers should not be here"))
     (else (die "type ~S not implemented" type))))
