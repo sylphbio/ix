@@ -20,5 +20,5 @@
          :dependencies [(pontiff:repository :name tabulae :vcs git :url "https://github.com/sylphbio/tabulae.git")]
          :resolver alice
          :lib-dependencies []
-         :egg-dependencies [test uuid json]
+         :egg-dependencies [test uuid json srfi-34]
          :egg-resolver chicken-install)

@@ -8,6 +8,7 @@
 (import chicken.keyword)
 
 (import tabulae)
+(import srfi-34)
 
 (import (prefix ix.base ix:))
 (import ix.static)
@@ -29,7 +30,7 @@
          ((uuid string) (<> "\"" (cadr sx) "\""))
          ((integer natural scientific) (number->string (cadr sx)))
          ((boolean) (if (cadr sx) "#t" "#f"))
-         (else (die "malformed input: ~S" sx)))))
+         (else (raise (exn '(ix stringify) "malformed input: ~S" sx))))))
 
 ; js types are number/string/object/array/bool/null
 ; sexp/list/kw/string/bool are encoded directly
@@ -53,7 +54,7 @@
     ((uuid string) (<> "\"" (cadr sx) "\""))
     ((integer natural scientific) (<> "\"" (number->string (cadr sx)) "\""))
     ((boolean) (if (cadr sx) "true" "false"))
-    (else (die "malformed input: ~S" sx))))
+    (else (raise (exn '(ix stringify json) "malformed input: ~S" sx)))))
 
 ; dead simple
 ; XXX this could check prototype-tags but it would need some context awareness to handle sexp idents correctly
@@ -61,6 +62,6 @@
   (cond ((list? p) (<> "(" (string-intersperse (map prototype p)) ")"))
         ((keyword? p) (<> ":" (keyword->string p)))
         ((symbol? p) (symbol->string p))
-        (else (error "invalid type in prototype" p))))
+        (else (raise (exn '(ix stringify) "invalid type in prototype: ~S" p)))))
 
 )

@@ -9,6 +9,7 @@
 
 (import tabulae)
 (import tabulae.monad)
+(import srfi-34)
 
 (import (prefix ix.base ix:))
 (import ix.lens)
@@ -33,7 +34,7 @@
      (define proto-tag (cond ((keyword? proto) 'keyword)
                              ((symbol? proto)  proto)
                              ((list? proto)    (car proto))
-                             (else             (die "bad prototype value" proto))))
+                             (else             (raise (exn '(ix validate) "bad prototype value: ~S" proto)))))
      (case proto-tag
        ; straightforward. if an optional value is present just check it normally
        ; optional is not an ix type, rather just a syntactic marker solely for prototypes
@@ -102,7 +103,7 @@
                           (eq? proto-tag (car obj))
                           (ix:well-typed? obj)
                           obj))
-       ((else        (die "unimplemented type" proto-tag))))))
+       ((else        (raise (exn '(ix validate) "unimplemented type" proto-tag)))))))
    ; filter out unused optional kvs from the prototype
    ; specifically the three properties we desire are:
    ; * every obj key corresponds to a proto key
@@ -147,7 +148,8 @@
          (validate-generic sx)
          (validate-typed sx i))))))
     ; XXX refactor obv, we want to error inside and report what actually went wrong lol
-    (lambda (sx) (let ((r (validate sx))) (if (just? r) (from-just r) (die "failed to validate: ~S" sx))))))
+    (lambda (sx) (let ((r (validate sx)))
+                      (if (just? r) (from-just r) (raise (exn '(ix validate) "failed to validate: ~S" sx)))))))
 
 ; pretty self-explanatory
 ; XXX TODO I'd like to be able to validate anything as any ix type
@@ -157,7 +159,7 @@
 ; XXX TODO FIXME I should just write an inference function, I can use that once I split out lex and parse too
 (define (validate-as tag sx)
   (let ((sxtag (and (ix:sexp? sx) (ix:ident->tag ((^. ident) sx)))))
-      (if (eqv? sxtag tag) (validate sx) (die "tag mismatch: expected ~S, got ~S" tag sxtag))))
+      (if (eqv? sxtag tag) (validate sx) (raise (exn '(ix validate) "tag mismatch: expected ~S, got ~S" tag sxtag)))))
 
 ; this wraps a given value with a given type
 ; split out from its parent below because it needs to recurse
@@ -184,10 +186,10 @@
                   (let ((full (find* (lambda (t) (and (list? t) (eq? (car t) (car value)))) (cdr type))))
                        (wrap-build-value full value)))
                  ((ix:ix? value) value)
-                 (else (die "sum type inference is not supported yet, please tag your values: ~S" value))))
+                 (else (raise (exn '(ix validate) "sum type inference not supported yet, please tag your values: ~S" value)))))
     ; this is explicitly for kv pairs
-    ((keyword identifier) (die "keywords and identifiers should not be here"))
-    (else (die "type ~S not implemented" type))))
+    ((keyword identifier) (raise (exn '(ix validate) "keywords and identifiers should not be here")))
+    (else (raise (exn '(ix validate) "type ~S not implemented" type)))))
 
 ; this extracts a type and value for a given keyword and handles optionalness
 (define (wrap-build-kv-pair types kvs kw)
@@ -235,6 +237,6 @@
                (build-typed tag kvs))))
        (if (just? r)
            (from-just r)
-           (die "build failed: ~S / ~S" tag kvs))))
+           (raise (exn '(ix build) "build failed: ~S / ~S" tag kvs)))))
 
 )

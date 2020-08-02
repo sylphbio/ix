@@ -12,6 +12,7 @@
 
 (import tabulae)
 (import (prefix uuid uuid:))
+(import srfi-34)
 
 (import ix.static)
 
@@ -20,8 +21,8 @@
 
 ; takes a list of prototypes, uses tag to make alist
 (define (register! plist)
-  (when (find* (lambda (p) (eqv? (car p) 'ix)) plist) (die "cannot override the special identifier ix"))
-  (when (find* (lambda (p) (eqv? (car p) '*)) plist) (die "* has special meaning for prototypes and is disallowed"))
+  (when (find* (lambda (p) (eqv? (car p) 'ix)) plist) (raise (exn 'ix "cannot override the special identifier ix")))
+  (when (find* (lambda (p) (eqv? (car p) '*)) plist) (raise (exn 'ix "* has special meaning for prototypes and is disallowed")))
   (define pts (foldl (lambda (acc p) (alist-update (car p) p acc))
                      prototypes
                      plist))
@@ -73,10 +74,10 @@
 ; XXX should this recursively unwrap lists and products?
 ; XXX impl that lens suggestion lol
 (define (unwrap v)
-  (cond ((sexp? v) (die "unwrapping sexp is nonsensical, extract the key/val list via lens"))
+  (cond ((sexp? v) (raise (exn 'ix "unwrapping sexp is nonsensical, extract the key/val list via lens")))
         ((or (list? v) (product? v) (identifier? v)) (cdr v))
         ((ix? v) (cadr v))
-        (else (die "cannot unwrap non-ix value: ~S" v))))
+        (else (raise (exn 'ix "cannot unwrap non-ix value: ~S" v)))))
 
 ; XXX change these to "identifier", I don't want a profusion of shorthands
 (define (tag->ident t)

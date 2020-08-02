@@ -12,6 +12,7 @@
 (import tabulae.parsec)
 (import tabulae.monad)
 (import json)
+(import srfi-34)
 
 (import (prefix ix.base ix:))
 (import (prefix ix.build ix:))
@@ -128,11 +129,11 @@
 
 (define (ix sx)
   (let ((r (parse->maybe ((ix-parser) sx))))
-       (if (just? r) (from-just r) (die "failed to parse: ~S" sx))))
+       (if (just? r) (from-just r) (raise (exn '(ix parse) "failed to parse: ~S" sx)))))
 
 (define (flat-ix sx)
   (let ((r (parse->maybe ((ix-parser :flat #t) sx))))
-       (if (just? r) (from-just r) (die "failed to flat parse: ~S" sx))))
+       (if (just? r) (from-just r) (raise (exn '(ix parse) "failed to flat parse: ~S" sx)))))
 
 ; so the way json->ix works is, first to cut corners I parse the json to scheme with a library
 ; this produces vectors of pairs for objects, lists for arrays, unspecified for null, what you'd expect for rest
@@ -152,8 +153,8 @@
            ((exact-integer? val) (wrap tw 'integer val))
            ((number? val) (wrap tw 'scientific val))
            ((boolean? val) (wrap tw 'boolean val))
-           ((eqv? (void) val) (die "null is (emphatically) not supported"))
-           (else (die "not a value" val)))))
+           ((eqv? (void) val) (raise (exn `(ix parse json) "null is (emphatically) not supported")))
+           (else (raise (exn `(ix parse json) "not a value: ~S" val))))))
    ; so we convert to list and check for an identifier, defaulting to generic ix of course
    ; for a generic ix object, we need to wrap all our values (not keywords) before calling build
    ; but for a typed ix object, we leave them unwrapped, since our prototype promotes certain types up from strings
@@ -175,7 +176,7 @@
      (let ((raw (call-with-input-string js json-read)))
           (cond ((vector? raw) (parse-obj raw))
                 ((and (list? raw) (all* vector? raw)) (map parse-obj raw))
-                (else (die "json->ix accepts an object or a list of objects" js)))))))
+                (else (raise (exn `(ix parse json) "json->ix accepts an object or a list of objects: ~S" js))))))))
   json->ix))
 
 ; XXX TODO FIXME I have better things to do rn

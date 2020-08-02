@@ -22,10 +22,6 @@
 ; afaik unicode is so absurdly complicated there's no way to enforce "ok do whatever except no weird shit ok!!"
 (define untroublesome (string->list "$%&*+-./;<=>?@^_~"))
 
-; XXX I think in time I will migrate this into tabulae
-; say, when I have pontiff extensions, and can load an exn object with line and function
-(define (die msg . args) (abort (apply sprintf `(,(<> "ix error: " msg "\n") ,@args))))
-
 ; what it says
 (define tags `(sexp list product sum enum identifier keyword symbol uuid string integer natural scientific boolean))
 
