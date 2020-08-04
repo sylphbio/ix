@@ -1,10 +1,11 @@
-(module ix.parse (ix flat-ix json->ix prototype)
+(module ix.parse (ix flat-ix json->ix prototype exn?)
 
 (import scheme)
 (import chicken.base)
 (import chicken.type)
 (import chicken.format)
 (import chicken.string)
+(import chicken.condition)
 (import chicken.keyword)
 (import chicken.port)
 
@@ -181,5 +182,8 @@
 
 ; XXX TODO FIXME I have better things to do rn
 (define (prototype p) (call-with-input-string p read))
+
+; XXX probably move to tabulae so it can set up general parse: and stringify: namespaces
+(define exn? (condition-predicate 'parse))
 
 )

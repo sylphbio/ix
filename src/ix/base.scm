@@ -1,6 +1,6 @@
 (module ix.base (register! prototype ix? primitive? sexp? list? product? enum? identifier?
                  keyword? symbol? uuid? string? integer? natural? scientific? boolean?
-                 well-typed? tag->ident ident->tag ident=? wrap unwrap)
+                 well-typed? tag->ident ident->tag ident=? wrap unwrap exn?)
 
 (import (except scheme list? string? symbol? integer? number? boolean?))
 (import (prefix scheme scheme:))
@@ -8,6 +8,7 @@
 (import chicken.type)
 (import chicken.string)
 (import chicken.format)
+(import chicken.condition)
 (import (prefix chicken.keyword chicken:))
 
 (import tabulae)
@@ -116,5 +117,7 @@
              ((scientific) (scheme:number? v))
              ((boolean) (scheme:boolean? v))
              (else #f)))))
+
+(define exn? (condition-predicate 'ix))
 
 )

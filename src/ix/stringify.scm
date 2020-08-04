@@ -1,10 +1,11 @@
-(module ix.stringify (ix ix->json prototype)
+(module ix.stringify (ix ix->json prototype exn?)
 
 (import scheme)
 (import chicken.base)
 (import chicken.type)
 (import chicken.format)
 (import chicken.string)
+(import chicken.condition)
 (import chicken.keyword)
 
 (import tabulae)
@@ -63,5 +64,7 @@
         ((keyword? p) (<> ":" (keyword->string p)))
         ((symbol? p) (symbol->string p))
         (else (raise (exn '(ix stringify) "invalid type in prototype: ~S" p)))))
+
+(define exn? (condition-predicate 'stringify))
 
 )

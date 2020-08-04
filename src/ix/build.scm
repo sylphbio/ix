@@ -148,8 +148,11 @@
          (validate-generic sx)
          (validate-typed sx i))))))
     ; XXX refactor obv, we want to error inside and report what actually went wrong lol
-    (lambda (sx) (let ((r (validate sx)))
-                      (if (just? r) (from-just r) (raise (exn '(ix validate) "failed to validate: ~S" sx)))))))
+    (lambda (sx) (let* ((r (validate sx))
+                        (tag (ix:ident->tag ((^. ident) sx))))
+                       (if (just? r)
+                           (from-just r)
+                           (raise (exn `((ix) (validate tag ,tag)) "validation failed")))))))
 
 ; pretty self-explanatory
 ; XXX TODO I'd like to be able to validate anything as any ix type
@@ -159,7 +162,7 @@
 ; XXX TODO FIXME I should just write an inference function, I can use that once I split out lex and parse too
 (define (validate-as tag sx)
   (let ((sxtag (and (ix:sexp? sx) (ix:ident->tag ((^. ident) sx)))))
-      (if (eqv? sxtag tag) (validate sx) (raise (exn '(ix validate) "tag mismatch: expected ~S, got ~S" tag sxtag)))))
+      (if (eqv? sxtag tag) (validate sx) (raise (exn `((ix) (validate tag ,sxtag)) "tag mismatch: expected ~S" tag)))))
 
 ; this wraps a given value with a given type
 ; split out from its parent below because it needs to recurse
@@ -186,10 +189,10 @@
                   (let ((full (find* (lambda (t) (and (list? t) (eq? (car t) (car value)))) (cdr type))))
                        (wrap-build-value full value)))
                  ((ix:ix? value) value)
-                 (else (raise (exn '(ix validate) "sum type inference not supported yet, please tag your values: ~S" value)))))
+                 (else (raise (exn '(ix build) "sum type inference not supported yet, please tag your values: ~S" value)))))
     ; this is explicitly for kv pairs
-    ((keyword identifier) (raise (exn '(ix validate) "keywords and identifiers should not be here")))
-    (else (raise (exn '(ix validate) "type ~S not implemented" type)))))
+    ((keyword identifier) (raise (exn '(ix build) "keywords and identifiers should not be here")))
+    (else (raise (exn '(ix build) "type ~S not implemented" type)))))
 
 ; this extracts a type and value for a given keyword and handles optionalness
 (define (wrap-build-kv-pair types kvs kw)
@@ -237,6 +240,6 @@
                (build-typed tag kvs))))
        (if (just? r)
            (from-just r)
-           (raise (exn '(ix build) "build failed: ~S / ~S" tag kvs)))))
+           (raise (exn `((ix) (build tag ,tag)) "build failed")))))
 
 )
