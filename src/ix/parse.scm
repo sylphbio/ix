@@ -47,6 +47,7 @@
 ; XXX should probably call validate at the end so types get fixed up
 ; XXX can I have like a parse-with to allow prototypes to be sent over the wire?
 ; XXX this is not long for the world now that I'm dumping the monad interface in favor of normal error messages
+; XXX parse:ix stringify:ix was a dumb idea. scheme already has a convention: ix->string, string->ix
 (define (ix-parser #!key flat) (letrec
   ((untroublesome-p (sat (lambda (c) (memv c untroublesome))))
    (keyval (do/m <parser>

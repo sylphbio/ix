@@ -152,7 +152,7 @@
                         (tag (ix:ident->tag ((^. ident) sx))))
                        (if (just? r)
                            (from-just r)
-                           (raise (exn `((ix) (validate tag ,tag)) "validation failed")))))))
+                           (raise (exn `((ix) (validate tag ,tag)) "validation failed for ~S" tag)))))))
 
 ; pretty self-explanatory
 ; XXX TODO I'd like to be able to validate anything as any ix type
@@ -240,6 +240,6 @@
                (build-typed tag kvs))))
        (if (just? r)
            (from-just r)
-           (raise (exn `((ix) (build tag ,tag)) "build failed")))))
+           (raise (exn `((ix) (build tag ,tag)) "build failed for ~S" tag)))))
 
 )
